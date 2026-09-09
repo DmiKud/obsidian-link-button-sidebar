@@ -27,7 +27,7 @@ test('release metadata is internally consistent', async () => {
   const { validateMetadata } = await packaging;
   assert.equal(validateMetadata(manifest, packageJson, versions), manifest.version);
   assert.equal(manifest.isDesktopOnly, false);
-  assert.match(fs.readFileSync(path.join(root, 'LICENSE'), 'utf8'), /^MIT License\n/);
+  assert.match(fs.readFileSync(path.join(root, 'LICENSE'), 'utf8'), /^MIT License\r?\n/);
 });
 
 test('invalid release metadata is rejected', async () => {

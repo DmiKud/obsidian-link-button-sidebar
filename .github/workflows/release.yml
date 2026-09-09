@@ -1,0 +1,33 @@
+name: Draft release
+
+on:
+  push:
+    tags: ['[0-9]*.[0-9]*.[0-9]*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify tag matches manifest
+        run: node -e "if (process.env.GITHUB_REF_NAME !== require('./manifest.json').version) throw new Error('Tag must exactly match manifest.version, without a v prefix');"
+      - run: npm run package
+      - name: Create draft with individual plugin assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" --verify-tag --draft
+          --title "$GITHUB_REF_NAME" --notes-file CHANGELOG.md
+          "release/$GITHUB_REF_NAME/main.js"
+          "release/$GITHUB_REF_NAME/manifest.json"
+          "release/$GITHUB_REF_NAME/styles.css"

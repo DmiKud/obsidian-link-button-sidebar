@@ -1,0 +1,9 @@
+{
+  "id": "link-button-sidebar",
+  "name": "Link Button Sidebar",
+  "version": "0.2.0",
+  "minAppVersion": "1.4.0",
+  "description": "Insert frequently used wiki links from configurable, grouped sidebar buttons.",
+  "author": "Dmitry Kudryavtsev",
+  "isDesktopOnly": false
+}

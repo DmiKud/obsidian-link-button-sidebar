@@ -1,0 +1,22 @@
+{
+  "name": "obsidian-link-button-sidebar",
+  "version": "0.2.0",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "check": "node --check main.js",
+    "lint": "eslint . --max-warnings 0",
+    "test": "node --check main.js && node --test",
+    "validate": "npm run lint && npm test",
+    "package": "npm run validate && node scripts/package.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "eslint-plugin-obsidianmd": "0.4.2",
+    "globals": "16.5.0"
+  }
+}

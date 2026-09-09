@@ -27,7 +27,16 @@ test('release metadata is internally consistent', async () => {
   const { validateMetadata } = await packaging;
   assert.equal(validateMetadata(manifest, packageJson, versions), manifest.version);
   assert.equal(manifest.isDesktopOnly, false);
+  const lockfile = readJson('package-lock.json');
+  assert.equal(lockfile.version, manifest.version);
+  assert.equal(lockfile.packages[''].version, manifest.version);
   assert.match(fs.readFileSync(path.join(root, 'LICENSE'), 'utf8'), /^MIT License\r?\n/);
+});
+
+test('the production build uses the validated release packaging pipeline', () => {
+  const { scripts } = readJson('package.json');
+  assert.equal(scripts.build, 'npm run package');
+  assert.equal(scripts.package, 'npm run validate && node scripts/package.mjs');
 });
 
 test('invalid release metadata is rejected', async () => {

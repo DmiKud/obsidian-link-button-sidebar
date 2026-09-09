@@ -1,6 +1,6 @@
 # Releasing
 
-The current release candidate is **0.2.0**. It has not been submitted to the community directory by these scripts.
+The current version is **0.2.1**. These scripts do not submit or publish the community-directory entry.
 
 ## Local preflight
 
@@ -8,11 +8,10 @@ Use Node.js 22.13 or later and run:
 
 ```sh
 npm ci --ignore-scripts
-npm run validate
-npm run package
+npm run build
 ```
 
-Packaging verifies release metadata and copies only `main.js`, `manifest.json`, and `styles.css` to `release/0.2.0/`. It does not publish anything. Do not include `data.json`, development dependencies, or test files in the release assets.
+The build runs lint and tests, verifies release metadata, and copies only `main.js`, `manifest.json`, and `styles.css` to `release/<version>/`. It does not publish anything. No compilation is needed because `main.js` is the plain JavaScript source and distributable. Do not include `data.json`, development dependencies, or test files in the release assets.
 
 Install these three files in a separate test vault at `.obsidian/plugins/link-button-sidebar/`, then check in real Obsidian:
 
@@ -28,7 +27,7 @@ Automated checks do not replace desktop and mobile smoke tests. Verify the decla
 
 1. Put the reviewed source in a public GitHub repository. Keep `README.md`, `LICENSE`, `manifest.json`, `main.js`, and `styles.css` at its root.
 2. Confirm the author details in `manifest.json`. Keep the version in `manifest.json`, `package.json`, and `versions.json` consistent.
-3. Tag the reviewed commit **`0.2.0`**, without `v`. The release workflow validates the tag and prepares a draft GitHub release. Review its notes and three individual assets, then publish the release. A source ZIP alone is insufficient.
+3. Tag the reviewed commit with the exact version from the manifest, without `v` (currently **`0.2.1`**). The release workflow validates the tag, builds and attests all three assets, and prepares a draft GitHub release. Review its notes and three individual assets, then publish the release. A source ZIP alone is insufficient. Verify each downloaded asset with `gh attestation verify <file> --repo DmiKud/obsidian-link-button-sidebar`.
 4. Sign in to [Obsidian Community](https://community.obsidian.md), link your GitHub account, and use **Add a plugin**. The directory reads the manifest from the repository's default branch and verifies repository ownership.
 5. Resolve any automated review errors and publish the directory entry when ready. Submission alone does not make the plugin installable.
 

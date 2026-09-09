@@ -1,12 +1,13 @@
 {
   "name": "obsidian-link-button-sidebar",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "license": "MIT",
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
+    "build": "npm run package",
     "check": "node --check main.js",
     "lint": "eslint . --max-warnings 0",
     "test": "node --check main.js && node --test",

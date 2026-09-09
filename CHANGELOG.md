@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.1
+
+### Fixed
+
+- Removed redundant CSS clipping while preserving accessible field labels.
+- Moved group-header color mixing into a feature query, keeping the fallback for older browsers without duplicate background declarations.
+
+### Changed
+
+- Added a production `build` command for Obsidian's automated build verification.
+- Added GitHub artifact attestations for all three release assets.
+- Plugin behavior and settings layouts are unchanged.
+
 ## 0.2.0 — release candidate
 
 ### Added

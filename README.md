@@ -2,7 +2,7 @@
 
 Link Button Sidebar is an Obsidian plugin for inserting frequently used wiki links from a compact sidebar. Buttons can have different display labels and page targets, live inside reorderable groups, and use colors from a theme-friendly palette.
 
-Version 0.2.0 is being prepared for its first community release. Manual installation is available; this repository does not yet claim a community-directory listing.
+The current version is 0.2.1. Manual installation is available from GitHub Releases; availability in Obsidian's community directory depends on the directory review and publication process.
 
 ## Features
 
@@ -84,7 +84,7 @@ npm run validate
 npm run package
 ```
 
-`validate` runs ESLint, including the official Obsidian rules for JavaScript, and the regression tests. `package` also validates the metadata and copies exactly three release files to `release/<version>/`. Tests alone remain dependency-free:
+`validate` runs ESLint, including the official Obsidian rules for JavaScript, and the regression tests. `package` also validates the metadata and copies exactly three release files to `release/<version>/`. `npm run build` is the production entry point for the same pipeline; the plugin uses plain JavaScript and needs no compilation. Tests alone remain dependency-free:
 
 ```sh
 npm test

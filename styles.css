@@ -281,19 +281,24 @@ button.link-button-sidebar-settings__top-action {
   padding: 8px 14px;
   border-bottom: 1px solid var(--background-modifier-border);
   background: var(--background-secondary);
-  background: color-mix(
-    in srgb,
-    var(--link-button-sidebar-group-tint) 9%,
-    var(--background-secondary)
-  );
 }
 
-.theme-dark .link-button-sidebar-settings-group__header {
-  background: color-mix(
-    in srgb,
-    var(--link-button-sidebar-group-tint) 15%,
-    var(--background-secondary)
-  );
+@supports (background: color-mix(in srgb, black, white)) {
+  .link-button-sidebar-settings-group__header {
+    background: color-mix(
+      in srgb,
+      var(--link-button-sidebar-group-tint) 9%,
+      var(--background-secondary)
+    );
+  }
+
+  .theme-dark .link-button-sidebar-settings-group__header {
+    background: color-mix(
+      in srgb,
+      var(--link-button-sidebar-group-tint) 15%,
+      var(--background-secondary)
+    );
+  }
 }
 
 .link-button-sidebar-settings-group__folder {
@@ -338,7 +343,6 @@ button.link-button-sidebar-settings__top-action {
   padding: 0;
   border: 0;
   clip: rect(0 0 0 0);
-  clip-path: inset(50%);
   white-space: nowrap;
 }
 

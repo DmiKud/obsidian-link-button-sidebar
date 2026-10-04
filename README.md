@@ -54,6 +54,10 @@ With **Add a trailing space when needed** enabled, a space is inserted at the en
 
 Mention counts include normal wiki links, aliases, embeds, relative targets resolved by Obsidian, and links to headings on the configured page. Links inside fenced code, inline code, HTML comments, Obsidian `%%` comments, and indented code blocks are ignored. Markdown-style `[text](target)` links are not counted.
 
+### Line break after a link
+
+Enable **Start a new line after a link** in Settings → Link Button Sidebar → **Behavior** to move the cursor to the next line without adding a blank line. The option defaults off, overrides trailing spaces, and reuses one existing line break. Existing blank lines and following text are preserved. Markdown tables keep their inline behavior.
+
 ## Updating from 0.1.x
 
 Existing flat button settings are migrated automatically. Button labels, page targets, group order, duplicate buttons, and recognized colors are preserved. Valid legacy HEX colors that do not match the palette are preserved as custom colors; invalid CSS values fall back to **Accent**.

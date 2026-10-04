@@ -6,6 +6,7 @@ const {
   Setting,
   Notice,
   Modal,
+  Menu,
   debounce,
   moment,
   parseLinktext,
@@ -34,6 +35,8 @@ const UI_STRINGS = Object.freeze({
     futureWarning: 'These settings were created by a newer plugin version. Update the plugin before editing them.',
     openStartup: 'Open sidebar on startup', openStartupDesc: 'Automatically reveal the button panel when Obsidian starts.',
     trailingSpace: 'Add a trailing space when needed', trailingSpaceDesc: 'Adds a space only when the character after the inserted link requires one.',
+    newParagraph: 'Start a new line after a link', newParagraphDesc: 'Moves the cursor to the next line after the inserted link. Overrides trailing spaces; does not apply inside Markdown tables.',
+    openButtonPage: 'Open page in new tab', openButtonPageError: 'Could not open the linked page.',
     selectionAlias: 'Use selected text as link alias', selectionAliasDesc: 'A single-line selection becomes [[Page|selected text]]. Multi-line selections are preserved.',
     groupsAndButtons: 'Groups and buttons',
     settingsDescription: 'Create and organize button groups to quickly insert links into your notes.',
@@ -75,6 +78,8 @@ const UI_STRINGS = Object.freeze({
     futureWarning: 'Эти настройки созданы более новой версией плагина. Обновите плагин, прежде чем их редактировать.',
     openStartup: 'Открывать боковую панель при запуске', openStartupDesc: 'Автоматически показывает панель кнопок после запуска Obsidian.',
     trailingSpace: 'Добавлять пробел после ссылки при необходимости', trailingSpaceDesc: 'Добавляет пробел, только если следующий символ этого требует.',
+    newParagraph: 'Переносить строку после ссылки', newParagraphDesc: 'Переносит курсор на следующую строку после вставленной ссылки. Заменяет пробел после ссылки; не применяется внутри Markdown-таблиц.',
+    openButtonPage: 'Открыть страницу в новой вкладке', openButtonPageError: 'Не удалось открыть страницу по ссылке.',
     selectionAlias: 'Использовать выделенный текст как алиас', selectionAliasDesc: 'Однострочное выделение превращается в [[Страница|выделенный текст]]. Многострочное выделение сохраняется.',
     groupsAndButtons: 'Группы и кнопки',
     settingsDescription: 'Создавайте группы кнопок и быстро вставляйте ссылки в заметки.',
@@ -181,6 +186,7 @@ function createDefaultSettings() {
   return {
     settingsVersion: SETTINGS_VERSION,
     insertSpaceAfterLink: true,
+    newParagraphAfterLink: false,
     useSelectionAsAlias: true,
     openOnStartup: false,
     groups: [
@@ -437,6 +443,7 @@ function normalizeSettings(rawData) {
       settings: {
         ...defaults,
         insertSpaceAfterLink: typeof rawData.insertSpaceAfterLink === 'boolean' ? rawData.insertSpaceAfterLink : defaults.insertSpaceAfterLink,
+        newParagraphAfterLink: typeof rawData.newParagraphAfterLink === 'boolean' ? rawData.newParagraphAfterLink : false,
         useSelectionAsAlias: typeof rawData.useSelectionAsAlias === 'boolean' ? rawData.useSelectionAsAlias : defaults.useSelectionAsAlias,
         openOnStartup: typeof rawData.openOnStartup === 'boolean' ? rawData.openOnStartup : defaults.openOnStartup,
         groups: normalizeCurrentGroups(rawData.groups),
@@ -449,6 +456,7 @@ function normalizeSettings(rawData) {
   const settings = {
     settingsVersion: SETTINGS_VERSION,
     insertSpaceAfterLink: typeof rawData.insertSpaceAfterLink === 'boolean' ? rawData.insertSpaceAfterLink : true,
+    newParagraphAfterLink: typeof rawData.newParagraphAfterLink === 'boolean' ? rawData.newParagraphAfterLink : false,
     useSelectionAsAlias: typeof rawData.useSelectionAsAlias === 'boolean' ? rawData.useSelectionAsAlias : true,
     openOnStartup: typeof rawData.openOnStartup === 'boolean' ? rawData.openOnStartup : false,
     groups: usesCurrentSchema ? normalizeCurrentGroups(rawData.groups) : migrateLegacyGroups(rawData.buttons),
@@ -769,6 +777,8 @@ function buildInsertionPlan({
   leftCharacter = '',
   rightCharacter = '',
   insertSpaceAfterLink = true,
+  newParagraphAfterLink = false,
+  followingText = '',
   useSelectionAsAlias = true,
   escapeAliasSeparator = false,
 }) {
@@ -777,6 +787,14 @@ function buildInsertionPlan({
   const link = makeWikiLink(page, canUseAlias ? selection : '', escapeAliasSeparator && canUseAlias);
   if (!link) return { text: '', replaceSelection: false };
   const leadingSpace = shouldAddLeadingSpace(leftCharacter) ? ' ' : '';
+  if (newParagraphAfterLink) {
+    const existingBreaks = followingText.match(/^\n?/)[0].length;
+    return {
+      text: `${leadingSpace}${link}${'\n'.repeat(1 - existingBreaks)}`,
+      replaceSelection: !hasSelection || canUseAlias,
+      cursorAdvance: existingBreaks,
+    };
+  }
   const trailingSpace = shouldAddTrailingSpace(rightCharacter, insertSpaceAfterLink) ? ' ' : '';
   return { text: `${leadingSpace}${link}${trailingSpace}`, replaceSelection: !hasSelection || canUseAlias };
 }
@@ -894,6 +912,7 @@ class LinkButtonSidebarView extends ItemView {
         button.createSpan({ cls: 'link-button-sidebar__button-label', text: label });
         const countEl = button.createSpan({ cls: 'link-button-sidebar__count', attr: { 'aria-hidden': 'true' } });
         button.addEventListener('click', () => void this.plugin.insertLink(item.page));
+        button.addEventListener('contextmenu', (event) => this.plugin.showButtonContextMenu(event, item.page, this.leaf.getContainer()));
         this.buttonEntries.push({ button, countEl, item });
       }
     }
@@ -915,7 +934,8 @@ class LinkButtonSidebarView extends ItemView {
       const identity = validation.error || !hasTarget ? '' : getTargetIdentity(this.app, validation.target, sourcePath);
       const usageCount = identity ? counts.get(identity) || 0 : 0;
       const label = cleanText(entry.item.label) || validation.target || t('untitled');
-      entry.button.disabled = !hasTarget || Boolean(validation.error);
+      // Keep valid buttons available for navigation even without an insertion target.
+      entry.button.disabled = Boolean(validation.error);
       entry.button.toggleClass('is-present', usageCount > 0);
       entry.countEl.setText(usageCount > 0 ? String(usageCount) : '');
       entry.countEl.toggleClass('is-hidden', usageCount === 0);
@@ -1027,6 +1047,13 @@ class LinkButtonSidebarSettingTab extends PluginSettingTab {
       .setDesc(t('trailingSpaceDesc'))
       .addToggle((toggle) => toggle.setValue(this.plugin.settings.insertSpaceAfterLink).onChange((value) => {
         this.plugin.settings.insertSpaceAfterLink = value;
+        this.plugin.settingsChanged(false);
+      }));
+    new Setting(behaviorBody)
+      .setName(t('newParagraph'))
+      .setDesc(t('newParagraphDesc'))
+      .addToggle((toggle) => toggle.setValue(this.plugin.settings.newParagraphAfterLink).onChange((value) => {
+        this.plugin.settings.newParagraphAfterLink = value;
         this.plugin.settingsChanged(false);
       }));
     new Setting(behaviorBody)
@@ -1847,6 +1874,32 @@ module.exports = class LinkButtonSidebarPlugin extends Plugin {
     const recentLeaf = typeof this.app.workspace.getMostRecentLeaf === 'function' ? this.app.workspace.getMostRecentLeaf() : null;
     return recentLeaf && recentLeaf.view instanceof MarkdownView && recentLeaf.view.file ? recentLeaf.view : null;
   }
+  showButtonContextMenu(event, page, container) {
+    event.preventDefault();
+    const validation = validateLinkTarget(page);
+    if (validation.error) return;
+    const sourceLeaf = this.app.workspace.getMostRecentLeaf(container);
+    const sourcePath = sourceLeaf?.view?.file?.path || '';
+    const menu = new Menu();
+    menu.addItem((item) => item
+      .setTitle(t('openButtonPage'))
+      .setIcon('file-text')
+      .onClick(() => this.openButtonPage(validation.target, sourcePath, container)));
+    menu.showAtMouseEvent(event);
+  }
+  async openButtonPage(page, sourcePath, container) {
+    try {
+      const workspace = this.app.workspace;
+      // Scope tab placement to the sidebar's window, even after focus changes.
+      const anchor = workspace.getMostRecentLeaf(container);
+      if (!anchor) throw new Error('No tab available in the originating window.');
+      workspace.setActiveLeaf(anchor, { focus: false });
+      await workspace.openLinkText(page, sourcePath, 'tab', { active: true });
+    } catch (error) {
+      console.error('Link Button Sidebar: failed to open the linked page.', error);
+      new Notice(t('openButtonPageError'));
+    }
+  }
   async insertLink(page) {
     const validation = validateLinkTarget(page);
     if (validation.error) {
@@ -1863,14 +1916,21 @@ module.exports = class LinkButtonSidebarPlugin extends Plugin {
     const to = editor.getCursor('to');
     const selection = editor.getSelection();
     const canUseAlias = Boolean(cleanText(selection)) && this.settings.useSelectionAsAlias && !/[\r\n]/.test(selection);
+    const inTable = isMarkdownTableRow(editor, from.line);
+    const newParagraphAfterLink = this.settings.newParagraphAfterLink && !inTable;
+    const insertionEnd = canUseAlias ? to : from;
+    const followingEndLine = Math.min(editor.lastLine(), insertionEnd.line + 2);
+    const startOffset = newParagraphAfterLink ? editor.posToOffset(from) : 0;
     const plan = buildInsertionPlan({
       page: validation.target,
       selection,
       leftCharacter: getCharacterBefore(editor, from),
       rightCharacter: canUseAlias ? getCharacterAfter(editor, to) : selection.length > 0 ? selection.charAt(0) : getCharacterAfter(editor, from),
       insertSpaceAfterLink: this.settings.insertSpaceAfterLink,
+      newParagraphAfterLink,
+      followingText: newParagraphAfterLink ? editor.getRange(insertionEnd, { line: followingEndLine, ch: editor.getLine(followingEndLine).length }) : '',
       useSelectionAsAlias: this.settings.useSelectionAsAlias,
-      escapeAliasSeparator: canUseAlias && isMarkdownTableRow(editor, from.line),
+      escapeAliasSeparator: canUseAlias && inTable,
     });
     if (!plan.text) {
       new Notice(t('invalidLink'));
@@ -1878,6 +1938,7 @@ module.exports = class LinkButtonSidebarPlugin extends Plugin {
     }
     if (plan.replaceSelection) editor.replaceSelection(plan.text);
     else editor.replaceRange(plan.text, from);
+    if (newParagraphAfterLink) editor.setCursor(editor.offsetToPos(startOffset + plan.text.length + plan.cursorAdvance));
     editor.focus();
     this.refreshViewsDebounced();
   }

@@ -54,7 +54,7 @@ async function loadPlugin() {
     addCommand() {}
     addSettingTab(tab) { this.tabs.push(tab); }
     async loadData() {
-      return { settingsVersion: 3, insertSpaceAfterLink: true, useSelectionAsAlias: true, openOnStartup: false, groups: [] };
+      return { settingsVersion: 3, insertSpaceAfterLink: true, newParagraphAfterLink: false, useSelectionAsAlias: true, openOnStartup: false, groups: [] };
     }
     async saveData(value) { writes.push(value); }
     unload() {

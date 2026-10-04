@@ -56,7 +56,7 @@ Mention counts include normal wiki links, aliases, embeds, relative targets reso
 
 ### Open a linked page
 
-Right-click a link button and choose **Open page** to navigate to its configured page target relative to the last active note. This does not insert text. Valid buttons remain available for navigation when no Markdown note is open; left-click insertion still requires a target note. Navigation uses the current workspace view, not a separate popup window.
+Right-click a link button and choose **Open page in new tab** to navigate to its configured page target relative to the last active note in the sidebar’s window. This does not insert text. Valid buttons remain available for navigation when no Markdown note is open; left-click insertion still requires a target note. Each action requests a new tab in that same window (including an additional Obsidian window), preserving the existing document tab. Relative links, headings, blocks, and missing-note creation use Obsidian’s standard link-opening behavior.
 
 ### Line break after a link
 

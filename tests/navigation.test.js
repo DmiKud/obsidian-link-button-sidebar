@@ -8,7 +8,7 @@ function loadHarness() {
   const menus = [];
   const notices = [];
   const opened = [];
-  class Base {}
+  class Base { constructor(leaf) { this.leaf = leaf; } }
   class Menu {
     constructor() { this.items = []; menus.push(this); }
     addItem(callback) {
@@ -41,11 +41,15 @@ function loadHarness() {
   plugin.settings = Plugin.testApi.normalizeSettings(null).settings;
   plugin.getTargetMarkdownView = () => null;
   plugin.refreshViewsDebounced = () => {};
+  const container = {};
+  const anchor = { view: { file: null }, container };
+  const activations = [];
   plugin.app = { workspace: {
-    getActiveFile: () => null,
+    getMostRecentLeaf(root) { assert.equal(root, container); return anchor; },
+    setActiveLeaf(leaf, options) { activations.push({ leaf, options }); },
     async openLinkText(...args) { opened.push(args); },
   } };
-  return { plugin, menus, notices, opened, ...Plugin.testApi };
+  return { plugin, menus, notices, opened, container, anchor, activations, ...Plugin.testApi };
 }
 
 function editorFor(text, start = text.length, end = start) {
@@ -83,36 +87,40 @@ function useEditor(plugin, editor) {
 }
 
 test('context menu opens the Page target relative to the source note without insertion', async () => {
-  const { plugin, menus, opened } = loadHarness();
+  const { plugin, menus, opened, container, anchor, activations } = loadHarness();
   const editor = editorFor('Unchanged');
   useEditor(plugin, editor);
+  anchor.view.file = { path: 'Folder/Source.md' };
   let prevented = false;
   const event = { preventDefault() { prevented = true; } };
-  plugin.showButtonContextMenu(event, '[[../Destination#Section]]');
+  plugin.showButtonContextMenu(event, '[[../Destination#Section]]', container);
   assert.equal(prevented, true);
   assert.equal(menus[0].event, event);
-  assert.equal(menus[0].items[0].title, 'Open page');
+  assert.equal(menus[0].items[0].title, 'Open page in new tab');
   // Preserve the source path even if focus changes while the menu is open.
   plugin.getTargetMarkdownView = () => null;
+  anchor.view.file = { path: 'Changed/Source.md' };
   await menus[0].items[0].click();
-  assert.deepEqual(opened, [['../Destination#Section', 'Folder/Source.md', false]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(opened)), [['../Destination#Section', 'Folder/Source.md', 'tab', { active: true }]]);
+  assert.equal(activations[0].leaf, anchor);
+  assert.equal(activations[0].options.focus, false);
   assert.equal(editor.getValue(), 'Unchanged');
 });
 
 test('navigation works without an open note and invalid targets do not show a menu', async () => {
-  const { plugin, menus, opened } = loadHarness();
+  const { plugin, menus, opened, container } = loadHarness();
   const event = { preventDefault() {} };
-  plugin.showButtonContextMenu(event, '');
+  plugin.showButtonContextMenu(event, '', container);
   assert.equal(menus.length, 0);
-  plugin.showButtonContextMenu(event, 'Projects/Work#^block');
+  plugin.showButtonContextMenu(event, 'Projects/Work#^block', container);
   await menus[0].items[0].click();
-  assert.deepEqual(opened, [['Projects/Work#^block', '', false]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(opened)), [['Projects/Work#^block', '', 'tab', { active: true }]]);
 });
 
 test('navigation failures show a notice instead of an unhandled rejection', async () => {
-  const { plugin, notices } = loadHarness();
+  const { plugin, notices, container } = loadHarness();
   plugin.app.workspace.openLinkText = async () => { throw new Error('Unavailable'); };
-  await plugin.openButtonPage('Page', '');
+  await plugin.openButtonPage('Page', '', container);
   assert.deepEqual(notices, ['Could not open the linked page.']);
 });
 
@@ -128,7 +136,7 @@ test('sidebar binds right click and keeps navigation available without an insert
     };
   }
   plugin.settings.groups = [{ name: 'Group', buttons: [{ label: 'Different label', page: 'Actual page', colorId: 'blue' }] }];
-  const view = new LinkButtonSidebarView(null, plugin);
+  const view = new LinkButtonSidebarView({ getContainer: () => ({}) }, plugin);
   view.contentEl = element();
   view.app = plugin.app;
   const calls = [];
@@ -140,4 +148,55 @@ test('sidebar binds right click and keeps navigation available without an insert
   button.listeners.contextmenu({});
   button.listeners.click();
   assert.deepEqual(calls, ['Actual page', 'Actual page']);
+});
+
+for (const windowName of ['main', 'additional']) {
+  test(`new tabs stay in the ${windowName} window and preserve existing tabs`, async () => {
+    const { plugin, menus, container, anchor } = loadHarness();
+    container.name = windowName;
+    anchor.view.file = { path: 'Folder/Source.md' };
+    const tabs = [anchor];
+    const otherWindowTab = { view: { file: { path: 'Other.md' } } };
+    let active = otherWindowTab;
+    plugin.app.workspace.setActiveLeaf = (leaf) => { active = leaf; };
+    plugin.app.workspace.openLinkText = async (target, source, mode, options) => {
+      assert.equal(active.container, container);
+      assert.equal(mode, 'tab');
+      assert.equal(source, 'Folder/Source.md');
+      assert.equal(options.active, true);
+      tabs.push({ target, container });
+    };
+    plugin.showButtonContextMenu({ preventDefault() {} }, 'Missing/Page#Heading', container);
+    // A different window can take focus while the menu is open.
+    for (let i = 0; i < 2; i++) {
+      active = otherWindowTab;
+      await menus[0].items[0].click();
+    }
+    assert.equal(tabs.length, 3);
+    assert.equal(tabs[0], anchor);
+    assert.equal(anchor.view.file.path, 'Folder/Source.md');
+    assert.equal(otherWindowTab.view.file.path, 'Other.md');
+    assert.notEqual(tabs[1], tabs[2]);
+    assert.equal(tabs[1].target, 'Missing/Page#Heading');
+  });
+}
+
+test('a closed originating window reports failure without opening in another window', async () => {
+  const { plugin, menus, container, opened, notices } = loadHarness();
+  plugin.showButtonContextMenu({ preventDefault() {} }, 'Page', container);
+  plugin.app.workspace.getMostRecentLeaf = () => null;
+  await menus[0].items[0].click();
+  assert.equal(opened.length, 0);
+  assert.deepEqual(notices, ['Could not open the linked page.']);
+});
+
+test('missing targets delegate to native link handling in a new tab', async () => {
+  const { plugin, menus, container, anchor, opened } = loadHarness();
+  anchor.view.file = { path: 'Folder/Source.md' };
+  plugin.showButtonContextMenu({ preventDefault() {} }, 'Not created yet', container);
+  await menus[0].items[0].click();
+  assert.deepEqual(JSON.parse(JSON.stringify(opened)), [
+    ['Not created yet', 'Folder/Source.md', 'tab', { active: true }],
+  ]);
+  assert.equal(anchor.view.file.path, 'Folder/Source.md');
 });

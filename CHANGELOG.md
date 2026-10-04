@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.2
+
+### Added
+
+- Right-click a sidebar button to open its linked note in a new tab in the same Obsidian window.
+
+### Fixed
+
+- Insert links with a single newline instead of adding an extra blank line.
+
 ## 0.2.1
 
 ### Fixed

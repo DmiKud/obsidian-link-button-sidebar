@@ -11,7 +11,7 @@ The current version is 0.2.1. Manual installation is available from GitHub Relea
 - Move buttons between groups, add empty groups, and use groups as visual separators in the sidebar.
 - Choose the button dot from a compact palette or enter a safe custom HEX color.
 - Use a compact tablet layout and collapsible group overview on narrow mobile screens.
-- See how many times each target is already mentioned in the current note. Repeated links are allowed and shown as a number; the button always remains an insertion action.
+- See how many times each target is already mentioned in the current note. Repeated links are allowed and shown as a number; left-click always remains an insertion action.
 - Insert selected single-line text as an alias: selecting `the project` and pressing a button targeting `Projects/Current` produces `[[Projects/Current|the project]]`.
 - Preserve multi-line selections and add surrounding spaces only where prose needs them.
 - Disable insertion when no Markdown note is available, while showing the exact target note in the sidebar.
@@ -54,6 +54,10 @@ With **Add a trailing space when needed** enabled, a space is inserted at the en
 
 Mention counts include normal wiki links, aliases, embeds, relative targets resolved by Obsidian, and links to headings on the configured page. Links inside fenced code, inline code, HTML comments, Obsidian `%%` comments, and indented code blocks are ignored. Markdown-style `[text](target)` links are not counted.
 
+### Open a linked page
+
+Right-click a link button and choose **Open page** to navigate to its configured page target relative to the last active note. This does not insert text. Valid buttons remain available for navigation when no Markdown note is open; left-click insertion still requires a target note. Navigation uses the current workspace view, not a separate popup window.
+
 ### Line break after a link
 
 Enable **Start a new line after a link** in Settings → Link Button Sidebar → **Behavior** to move the cursor to the next line without adding a blank line. The option defaults off, overrides trailing spaces, and reuses one existing line break. Existing blank lines and following text are preserved. Markdown tables keep their inline behavior.
@@ -64,7 +68,7 @@ Existing flat button settings are migrated automatically. Button labels, page ta
 
 ## Troubleshooting
 
-- If every button is disabled, open or focus a Markdown note and check the target shown at the top of the sidebar.
+- If insertion is unavailable, open or focus a Markdown note and check the target shown at the top of the sidebar. Right-click navigation remains available for valid targets.
 - If a button is marked invalid, correct its **Page** value in settings.
 - If the panel is hidden, run **Link Button Sidebar: Open sidebar** from the command palette.
 - If settings cannot be read, editing and saving are blocked to protect the original `data.json`. Try reloading the plugin first; if the error persists, restore that file from a backup.

@@ -6,6 +6,7 @@ const {
   Setting,
   Notice,
   Modal,
+  Menu,
   debounce,
   moment,
   parseLinktext,
@@ -35,6 +36,7 @@ const UI_STRINGS = Object.freeze({
     openStartup: 'Open sidebar on startup', openStartupDesc: 'Automatically reveal the button panel when Obsidian starts.',
     trailingSpace: 'Add a trailing space when needed', trailingSpaceDesc: 'Adds a space only when the character after the inserted link requires one.',
     newParagraph: 'Start a new line after a link', newParagraphDesc: 'Moves the cursor to the next line after the inserted link. Overrides trailing spaces; does not apply inside Markdown tables.',
+    openButtonPage: 'Open page', openButtonPageError: 'Could not open the linked page.',
     selectionAlias: 'Use selected text as link alias', selectionAliasDesc: 'A single-line selection becomes [[Page|selected text]]. Multi-line selections are preserved.',
     groupsAndButtons: 'Groups and buttons',
     settingsDescription: 'Create and organize button groups to quickly insert links into your notes.',
@@ -77,6 +79,7 @@ const UI_STRINGS = Object.freeze({
     openStartup: 'Открывать боковую панель при запуске', openStartupDesc: 'Автоматически показывает панель кнопок после запуска Obsidian.',
     trailingSpace: 'Добавлять пробел после ссылки при необходимости', trailingSpaceDesc: 'Добавляет пробел, только если следующий символ этого требует.',
     newParagraph: 'Переносить строку после ссылки', newParagraphDesc: 'Переносит курсор на следующую строку после вставленной ссылки. Заменяет пробел после ссылки; не применяется внутри Markdown-таблиц.',
+    openButtonPage: 'Открыть страницу', openButtonPageError: 'Не удалось открыть страницу по ссылке.',
     selectionAlias: 'Использовать выделенный текст как алиас', selectionAliasDesc: 'Однострочное выделение превращается в [[Страница|выделенный текст]]. Многострочное выделение сохраняется.',
     groupsAndButtons: 'Группы и кнопки',
     settingsDescription: 'Создавайте группы кнопок и быстро вставляйте ссылки в заметки.',
@@ -909,6 +912,7 @@ class LinkButtonSidebarView extends ItemView {
         button.createSpan({ cls: 'link-button-sidebar__button-label', text: label });
         const countEl = button.createSpan({ cls: 'link-button-sidebar__count', attr: { 'aria-hidden': 'true' } });
         button.addEventListener('click', () => void this.plugin.insertLink(item.page));
+        button.addEventListener('contextmenu', (event) => this.plugin.showButtonContextMenu(event, item.page));
         this.buttonEntries.push({ button, countEl, item });
       }
     }
@@ -930,7 +934,8 @@ class LinkButtonSidebarView extends ItemView {
       const identity = validation.error || !hasTarget ? '' : getTargetIdentity(this.app, validation.target, sourcePath);
       const usageCount = identity ? counts.get(identity) || 0 : 0;
       const label = cleanText(entry.item.label) || validation.target || t('untitled');
-      entry.button.disabled = !hasTarget || Boolean(validation.error);
+      // Keep valid buttons available for navigation even without an insertion target.
+      entry.button.disabled = Boolean(validation.error);
       entry.button.toggleClass('is-present', usageCount > 0);
       entry.countEl.setText(usageCount > 0 ? String(usageCount) : '');
       entry.countEl.toggleClass('is-hidden', usageCount === 0);
@@ -1868,6 +1873,26 @@ module.exports = class LinkButtonSidebarPlugin extends Plugin {
     if (activeView && activeView.file) return activeView;
     const recentLeaf = typeof this.app.workspace.getMostRecentLeaf === 'function' ? this.app.workspace.getMostRecentLeaf() : null;
     return recentLeaf && recentLeaf.view instanceof MarkdownView && recentLeaf.view.file ? recentLeaf.view : null;
+  }
+  showButtonContextMenu(event, page) {
+    event.preventDefault();
+    const validation = validateLinkTarget(page);
+    if (validation.error) return;
+    const sourcePath = this.getTargetMarkdownView()?.file?.path || this.app.workspace.getActiveFile()?.path || '';
+    const menu = new Menu();
+    menu.addItem((item) => item
+      .setTitle(t('openButtonPage'))
+      .setIcon('file-text')
+      .onClick(() => this.openButtonPage(validation.target, sourcePath)));
+    menu.showAtMouseEvent(event);
+  }
+  async openButtonPage(page, sourcePath) {
+    try {
+      await this.app.workspace.openLinkText(page, sourcePath, false);
+    } catch (error) {
+      console.error('Link Button Sidebar: failed to open the linked page.', error);
+      new Notice(t('openButtonPageError'));
+    }
   }
   async insertLink(page) {
     const validation = validateLinkTarget(page);
